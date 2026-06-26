@@ -1030,7 +1030,84 @@ class Competition:
         # With N arenas, we have 2N players, so we need ceil(log2(2N)) rounds
         # This equals ceil(log2(2 * arenas)) = ceil(1 + log2(arenas))
         return max(1, math.ceil(math.log2(config.arenas * 2))) if config.arenas > 0 else 1
-    
+
+    def get_bracket(self) -> dict:
+        """Serialize the full tournament bracket for the current competition.
+
+        Returns every round played or in progress, each match's players,
+        scores, winner, and any byes, plus the eventual champion. Pairings for
+        a round only exist once the prior round completes, so the bracket
+        reveals progressively. A match with no recorded result yet is reported
+        as in progress (winner is None). The data persists through the COMPLETE
+        state and is cleared when the next competition begins.
+        """
+        def name_of(uid: Optional[str]) -> str:
+            player = self.players.get(uid) if uid else None
+            return player.name if player else "Unknown"
+
+        rounds_out: list[dict] = []
+        for round_idx, pairings in enumerate(self.rounds):
+            results = self.match_results[round_idx] if round_idx < len(self.match_results) else []
+
+            # Index completed real matches by the unordered pair of player uids;
+            # byes are stored as a self-result (player1_uid == player2_uid).
+            result_by_pair: dict[frozenset, MatchResult] = {}
+            byes: list[MatchResult] = []
+            for r in results:
+                if r.player1_uid == r.player2_uid:
+                    byes.append(r)
+                else:
+                    result_by_pair[frozenset((r.player1_uid, r.player2_uid))] = r
+
+            matches_out: list[dict] = []
+            for uid1, uid2 in pairings:
+                r = result_by_pair.get(frozenset((uid1, uid2)))
+                if r:
+                    matches_out.append({
+                        "player1": name_of(uid1),
+                        "player2": name_of(uid2),
+                        "player1_id": uid1,
+                        "player2_id": uid2,
+                        "player1_score": r.player1_points if r.player1_uid == uid1 else r.player2_points,
+                        "player2_score": r.player2_points if r.player1_uid == uid1 else r.player1_points,
+                        "winner": name_of(r.winner_uid),
+                        "winner_slot": 1 if r.winner_uid == uid1 else 2,
+                        "bye": False,
+                    })
+                else:
+                    matches_out.append({
+                        "player1": name_of(uid1),
+                        "player2": name_of(uid2),
+                        "player1_id": uid1,
+                        "player2_id": uid2,
+                        "player1_score": None,
+                        "player2_score": None,
+                        "winner": None,
+                        "winner_slot": None,
+                        "bye": False,
+                    })
+
+            for r in byes:
+                matches_out.append({
+                    "player1": name_of(r.winner_uid),
+                    "player2": None,
+                    "player1_id": r.winner_uid,
+                    "player2_id": None,
+                    "player1_score": None,
+                    "player2_score": None,
+                    "winner": name_of(r.winner_uid),
+                    "winner_slot": 1,
+                    "bye": True,
+                })
+
+            rounds_out.append({"round": round_idx + 1, "matches": matches_out})
+
+        return {
+            "rounds": rounds_out,
+            "champion": name_of(self.champion_uid) if self.champion_uid else None,
+            "champion_id": self.champion_uid,
+        }
+
     def get_status(self) -> dict:
         """Get current competition status."""
         bye_player_name = None
@@ -1065,6 +1142,9 @@ class Competition:
         # Include champion's match history when competition is complete
         if self.state == CompetitionState.COMPLETE and self.champion_uid:
             result["champion_matches"] = self._get_champion_matches()
+        
+        # Full bracket of the current competition (persists until next one starts)
+        result["bracket"] = self.get_bracket()
         
         return result
     

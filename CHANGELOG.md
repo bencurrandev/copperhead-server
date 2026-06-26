@@ -2,6 +2,11 @@
 
 All notable changes to the CopperHead Server are documented in this file.
 
+## [Unreleased]
+
+### Added
+- `/competition` status now includes a `bracket` field with every round's matches, scores, winners, and byes plus the champion, for the client's Tournament Bracket display
+
 ## [v4.1.0] - 2026-04-14
 
 ### Added

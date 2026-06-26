@@ -28,7 +28,7 @@ All communication happens over a **single WebSocket connection** — lobby, game
 | `GET` | `/` | Bundled client `index.html` when client assets are included in the server image; otherwise server info JSON (`{"name": "CopperHead Server", "status": "running"}`) |
 | `GET` | `/status` | Server status: rooms, player counts, grid size, speed, points_to_win, competition state, fruits |
 | `GET` | `/settings` | Raw server settings file (admin_token stripped). Returns `{}` if no settings file is loaded |
-| `GET` | `/competition` | Competition state: round, total_rounds, players, champion, pairings, reset countdown |
+| `GET` | `/competition` | Competition state: round, total_rounds, players, champion, pairings, bracket, reset countdown |
 | `GET` | `/history` | Championship history (`{"championships": [...]}`) |
 | `GET` | `/lobby` | Lobby state: players, slot_assignments, open_slots, auto_start mode |
 | `GET` | `/rooms/active` | Active game rooms (`{"rooms": [{"room_id", "names", "wins"}]}`) |
